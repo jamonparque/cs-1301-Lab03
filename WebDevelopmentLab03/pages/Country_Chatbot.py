@@ -18,7 +18,7 @@ st.write(
 # ---------- Configure Gemini ----------
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-pro")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     GEMINI_READY = True
 except Exception as e:
     GEMINI_READY = False
