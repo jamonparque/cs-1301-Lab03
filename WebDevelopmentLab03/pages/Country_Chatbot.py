@@ -23,16 +23,13 @@ try:
 except Exception as e:
     GEMINI_READY = False
     st.error("⚠️ Gemini is not configured correctly. Please set GEMINI_API_KEY in Streamlit secrets.")
-    
+    st.error(f"Debug info: {e}")
 
-# ---------- Helper: fetch country data ----------
+# ---------- REST Countries Helper ----------
 BASE_URL = "https://restcountries.com/v3.1"
 
 def get_country_data(country_name: str):
-    """
-    Fetch basic data about a country from the REST Countries API.
-    You can customize which fields you care about.
-    """
+    """Fetch structured country data from REST Countries API."""
     if not country_name:
         return None
 
@@ -42,7 +39,6 @@ def get_country_data(country_name: str):
             data = response.json()
             if data:
                 country = data[0]
-                # Extract a subset of fields you want the chatbot to use
                 return {
                     "name": country.get("name", {}).get("common"),
                     "official_name": country.get("name", {}).get("official"),
@@ -56,38 +52,29 @@ def get_country_data(country_name: str):
                     "flag_emoji": country.get("flag", "")
                 }
     except Exception:
-        # You can log the error if you want
         return None
 
     return None
 
-
-# ---------- Helper: build prompt for Gemini ----------
+# ---------- Prompt Builder ----------
 def build_prompt(chat_history, country_data, user_message):
-    """
-    Convert the chat history + structured country data into a single prompt string.
-    You should customize the instructions so the chatbot behaves how you want.
-    """
+    """Builds a complete prompt for Gemini with structured data + chat history."""
     system_instructions = (
-        "You are a helpful assistant that answers questions about countries using the structured "
-        "data I provide from the REST Countries API. "
-        "If something is not in the data, you may answer from general knowledge, but say that it "
-        "is not directly from the API. "
-        "Keep answers clear and friendly. "
+        "You are a helpful assistant that answers questions about countries using data from the "
+        "REST Countries API. If a detail is not included in the provided data, you may answer from "
+        "general knowledge but state that it is not directly from the API. Keep responses clear, "
+        "accurate, and friendly."
     )
 
-    # Turn previous messages into a conversation transcript
+    # Convert chat history into a readable transcript
     history_str = ""
     for msg in chat_history:
-        role = msg["role"]
-        content = msg["content"]
-        history_str += f"{role.upper()}: {content}\n"
+        history_str += f"{msg['role'].upper()}: {msg['content']}\n"
 
-    # Include structured country info (if any)
-    country_info_str = "No country data was provided."
+    # Structured data section
     if country_data:
         country_info_str = f"""
-Country data:
+Country data from REST Countries API:
 - Name: {country_data.get('name')}
 - Official Name: {country_data.get('official_name')}
 - Capital: {country_data.get('capital')}
@@ -99,7 +86,10 @@ Country data:
 - Currencies: {', '.join(country_data.get('currencies', []))}
 - Flag: {country_data.get('flag_emoji', '')}
 """
+    else:
+        country_info_str = "No country data available."
 
+    # Final prompt
     prompt = f"""
 {system_instructions}
 
@@ -112,71 +102,83 @@ Structured REST Countries API info:
 User's latest question:
 {user_message}
 
-Now respond as the assistant. Be concise but informative.
+Now respond as the assistant.
 """
     return prompt
 
-
-# ---------- Helper: call Gemini with error handling ----------
+# ---------- Gemini API Wrapper (WITH DEBUGGING) ----------
 def ask_gemini(prompt: str) -> str:
-    """
-    Call Gemini safely. Wrap in try/except and return a user-friendly error message on failure.
-    """
+    """Safely call Gemini and show debug info on failure."""
     if not GEMINI_READY:
-        return "Gemini is not available right now. Please contact the app owner."
+        return "Gemini is not available because the API key is not configured."
 
     try:
         response = model.generate_content(prompt)
+
+        if not hasattr(response, "text") or response.text is None:
+            return "Gemini returned an empty response. Try asking differently."
+
         return response.text.strip()
+
     except Exception as e:
-        # You can log e for debugging if desired
-        return "Sorry, something went wrong while contacting the AI. Please try again in a moment."
+        # SHOW REAL ERROR → used for debugging your deployment
+        st.error(f"Gemini API error: {e}")
+        return (
+            "Sorry, something went wrong while contacting the AI. "
+            "Please try again in a moment."
+        )
 
-
-# ---------- Initialize chat history in session_state ----------
+# ---------- Session State for Memory ----------
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Optional: Let user pick a 'focus country' for the chatbot
+# ---------- Sidebar Settings ----------
 st.sidebar.header("Chatbot Settings")
-default_country = "France"
 selected_country = st.sidebar.text_input(
-    "Focus country (optional):",
-    value=default_country,
-    help="The chatbot will use data for this country when answering your questions."
+    "Focus country:",
+    value="France",
+    help="The chatbot will use data for this country when answering."
 )
 
-country_data = get_country_data(selected_country) if selected_country else None
+country_data = get_country_data(selected_country)
 if selected_country and not country_data:
-    st.sidebar.warning(f"Could not load data for '{selected_country}'. The chatbot may answer more generally.")
+    st.sidebar.warning(f"Could not load data for '{selected_country}'.")
 
-# ---------- Display chat history ----------
+# ---------- Display Chat History ----------
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# ---------- Chat input ----------
+# ---------- Chat Input ----------
 user_message = st.chat_input("Ask me something about countries...")
 
 if user_message:
-    # Add user message to history
-    st.session_state.chat_history.append({"role": "user", "content": user_message})
+    # Save user message
+    st.session_state.chat_history.append({
+        "role": "user",
+        "content": user_message
+    })
 
-    # Build prompt using full history + current country data
+    # Build prompt including all history + structured data
     prompt = build_prompt(
         chat_history=st.session_state.chat_history,
         country_data=country_data,
         user_message=user_message
     )
 
-    # Call Gemini with error handling
+    # Ask Gemini
     assistant_reply = ask_gemini(prompt)
 
-    # Add assistant reply to history and display it
-    st.session_state.chat_history.append({"role": "assistant", "content": assistant_reply})
+    # Save assistant message
+    st.session_state.chat_history.append({
+        "role": "assistant",
+        "content": assistant_reply
+    })
+
+    # Display assistant message
     with st.chat_message("assistant"):
         st.markdown(assistant_reply)
 
-# Footer
+# ---------- Footer ----------
 st.markdown("---")
 st.caption("💡 Phase 4: Country Chatbot • Powered by Google Gemini and REST Countries API")
