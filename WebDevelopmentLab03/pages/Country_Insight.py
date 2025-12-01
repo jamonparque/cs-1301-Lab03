@@ -9,11 +9,13 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🌍 Country Insight (Phase 3)")
-st.write(
-    "Generate AI-powered insights about countries using live data from the REST Countries API "
-    "and Google Gemini. This page focuses on structured summaries and comparisons."
-)
+# ---------- HERO / HEADER CONTAINER ----------
+with st.container():
+    st.title("🌍 Country Insight (Phase 3)")
+    st.write(
+        "Generate AI-powered insights about countries using live data from the REST Countries API "
+        "and Google Gemini. This page focuses on structured summaries and comparisons."
+    )
 
 # ---------- Configure Gemini ----------
 try:
@@ -21,7 +23,7 @@ try:
 
     # IMPORTANT:
     # Use the SAME model name here that works in your chatbot page.
-    # If your chatbot works with "gemini-1.5-flash", use that instead.
+    # If your chatbot works with "gemini-1.5-flash", change this line accordingly.
     INSIGHT_MODEL_NAME = "gemini-flash-latest"
     insight_model = genai.GenerativeModel(INSIGHT_MODEL_NAME)
 
@@ -127,7 +129,7 @@ Now write the requested insight in a way that would make sense to a student expl
         st.error(f"Gemini API error (Country Insight): {e}")
         return "Sorry, something went wrong while generating the insight. Please try again."
 
-# ---------- Sidebar Inputs (Phase 3 requirements) ----------
+# ---------- SIDEBAR (LAYOUT SETTINGS) ----------
 st.sidebar.header("Country Insight Settings")
 
 primary_country = st.sidebar.text_input(
@@ -174,57 +176,10 @@ extra_note = st.sidebar.text_area(
     height=80
 )
 
-# ---------- Fetch data + display ----------
-col1, col2 = st.columns(2)
+# ---------- FETCH DATA ONCE (used in tabs) ----------
+primary_data = get_country_data(primary_country)
+secondary_data = None
+if compare_mode and secondary_country:
+    secondary_data = get_country_data(secondary_country)
 
-with col1:
-    st.subheader("📌 Primary Country Data")
-    primary_data = get_country_data(primary_country)
-    if primary_data:
-        st.write(f"**{primary_data['name']}** {primary_data.get('flag', '')}")
-        st.write(f"**Capital:** {primary_data['capital']}")
-        st.write(f"**Region:** {primary_data['region']} — {primary_data['subregion']}")
-        st.write(f"**Population:** {primary_data['population']:,}")
-        st.write(f"**Area:** {primary_data['area']:,} km²")
-        st.write(f"**Languages:** {', '.join(primary_data['languages']) or 'Unknown'}")
-        st.write(f"**Currencies:** {', '.join(primary_data['currencies']) or 'Unknown'}")
-    else:
-        st.warning(f"Could not load data for '{primary_country}'. Please check the spelling.")
-
-with col2:
-    st.subheader("📎 Comparison Country Data")
-    secondary_data = None
-    if compare_mode and secondary_country:
-        secondary_data = get_country_data(secondary_country)
-        if secondary_data:
-            st.write(f"**{secondary_data['name']}** {secondary_data.get('flag', '')}")
-            st.write(f"**Capital:** {secondary_data['capital']}")
-            st.write(f"**Region:** {secondary_data['region']} — {secondary_data['subregion']}")
-            st.write(f"**Population:** {secondary_data['population']:,}")
-            st.write(f"**Area:** {secondary_data['area']:,} km²")
-            st.write(f"**Languages:** {', '.join(secondary_data['languages']) or 'Unknown'}")
-            st.write(f"**Currencies:** {', '.join(secondary_data['currencies']) or 'Unknown'}")
-        else:
-            st.warning(f"Could not load data for '{secondary_country}'. The insight will only use the primary country.")
-    else:
-        st.info("Enable the comparison checkbox in the sidebar to add a second country.")
-
-st.markdown("---")
-
-# ---------- Generate Insight Button ----------
-if st.button("✨ Generate Country Insight"):
-    if not primary_data:
-        st.error("Please fix the primary country name before generating an insight.")
-    else:
-        with st.spinner("Asking Gemini to analyze the country data..."):
-            insight_text = generate_country_insight(
-                primary_data=primary_data,
-                secondary_data=secondary_data,
-                insight_type=insight_type,
-                detail_level=detail_level,
-                extra_note=extra_note,
-            )
-        st.subheader("🧠 AI-Generated Insight")
-        st.write(insight_text)
-else:
-    st.info("Set your options in the sidebar, then click **Generate Country Insight** to see the AI output.")
+# ---------- TABS CONTAINER FOR MAIN CONTENT
