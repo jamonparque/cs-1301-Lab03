@@ -23,7 +23,7 @@ try:
 except Exception as e:
     GEMINI_READY = False
     st.error("⚠️ Gemini is not configured correctly. Please set GEMINI_API_KEY in Streamlit secrets.")
-    st.error(f"Debug info: {e}")
+    st.error(f"Debug info (Gemini config): {e}")
 
 # ---------- REST Countries Helper ----------
 BASE_URL = "https://restcountries.com/v3.1"
@@ -52,6 +52,7 @@ def get_country_data(country_name: str):
                     "flag_emoji": country.get("flag", "")
                 }
     except Exception:
+        # If anything goes wrong with the API, just return None
         return None
 
     return None
@@ -106,27 +107,33 @@ Now respond as the assistant.
 """
     return prompt
 
-# ---------- Gemini API Wrapper (WITH DEBUGGING) ----------
+# ---------- Gemini API Wrapper (KEY PART) ----------
 def ask_gemini(prompt: str) -> str:
     """
-    Call Gemini safely. Wrap in try/except and show a helpful error message while debugging.
+    Safely call Gemini.
+    - If Gemini isn't configured, tell the user.
+    - If Gemini throws an error, show the real error (for debugging) AND a friendly message.
     """
     if not GEMINI_READY:
-        return "Gemini is not available right now because the API key is not configured or failed to load."
+        return "Gemini is not available because the API key is not configured."
 
     try:
         response = model.generate_content(prompt)
 
         # Extra safety: sometimes response.text can be None
         if not hasattr(response, "text") or response.text is None:
-            return "Gemini returned an empty response. Try rephrasing your question."
+            return "Gemini returned an empty response. Try asking in a different way."
 
         return response.text.strip()
 
     except Exception as e:
-        # Show the real error inside the chat reply so you can see it for sure
-        return f"Sorry, something went wrong while contacting the AI.\n\n**Gemini error:** `{e}`"
-
+        # Show the real error in the UI for debugging
+        st.error(f"Gemini API error: {e}")
+        # Return a friendly message for the chat (assignment wants error handling)
+        return (
+            "Sorry, something went wrong while contacting the AI. "
+            "Please try again in a moment."
+        )
 
 # ---------- Session State for Memory ----------
 if "chat_history" not in st.session_state:
@@ -142,7 +149,7 @@ selected_country = st.sidebar.text_input(
 
 country_data = get_country_data(selected_country)
 if selected_country and not country_data:
-    st.sidebar.warning(f"Could not load data for '{selected_country}'.")
+    st.sidebar.warning(f"Could not load data for '{selected_country}'. The chatbot may answer more generally.")
 
 # ---------- Display Chat History ----------
 for msg in st.session_state.chat_history:
