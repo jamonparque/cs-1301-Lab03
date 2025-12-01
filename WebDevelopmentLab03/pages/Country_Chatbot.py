@@ -18,7 +18,8 @@ st.write(
 # ---------- Configure Gemini ----------
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    # IMPORTANT: use full model path with "models/"
+    model = genai.GenerativeModel("models/gemini-1.5-flash")
     GEMINI_READY = True
 except Exception as e:
     GEMINI_READY = False
@@ -107,7 +108,7 @@ Now respond as the assistant.
 """
     return prompt
 
-# ---------- Gemini API Wrapper (KEY PART) ----------
+# ---------- Gemini API Wrapper ----------
 def ask_gemini(prompt: str) -> str:
     """
     Safely call Gemini.
