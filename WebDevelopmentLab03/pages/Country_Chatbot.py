@@ -19,7 +19,7 @@ st.write(
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     # IMPORTANT: use full model path with "models/"
-    model = genai.GenerativeModel("models/gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     GEMINI_READY = True
 except Exception as e:
     GEMINI_READY = False
