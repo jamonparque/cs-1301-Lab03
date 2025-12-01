@@ -10,7 +10,35 @@ def generate_travel_guide(self, country_data, traveler_type, duration):
     
     st.info("🔄 Attempting to call Gemini API...")
     
-    # Your existing prompt code...
+    # ADD THIS MISSING CODE - build the prompt variable
+    country_name = country_data.get('name', {}).get('common', 'Unknown')
+    capital = country_data.get('capital', ['Unknown'])[0] if country_data.get('capital') else 'Unknown'
+    population = country_data.get('population', 0)
+    area = country_data.get('area', 0)
+    region = country_data.get('region', 'Unknown')
+    languages = list(country_data.get('languages', {}).values()) if country_data.get('languages') else ['Unknown']
+    
+    prompt = f"""
+    Create a detailed {duration}-day travel guide for {country_name} specifically for {traveler_type}.
+    
+    Country Information:
+    - Capital: {capital}
+    - Population: {population:,}
+    - Area: {area:,} km²
+    - Region: {region}
+    - Languages: {', '.join(languages)}
+    
+    Please include:
+    1. A brief introduction to the country
+    2. Recommended itinerary for {duration} days
+    3. Must-visit attractions and hidden gems
+    4. Local cuisine recommendations
+    5. Cultural tips and etiquette
+    6. Budget recommendations for {traveler_type}
+    7. Transportation advice
+    
+    Make it engaging and practical for someone actually planning to visit!
+    """
     
     try:
         st.info("📡 Sending request to Gemini...")
