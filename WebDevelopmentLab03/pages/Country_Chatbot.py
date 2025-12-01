@@ -108,25 +108,25 @@ Now respond as the assistant.
 
 # ---------- Gemini API Wrapper (WITH DEBUGGING) ----------
 def ask_gemini(prompt: str) -> str:
-    """Safely call Gemini and show debug info on failure."""
+    """
+    Call Gemini safely. Wrap in try/except and show a helpful error message while debugging.
+    """
     if not GEMINI_READY:
-        return "Gemini is not available because the API key is not configured."
+        return "Gemini is not available right now because the API key is not configured or failed to load."
 
     try:
         response = model.generate_content(prompt)
 
+        # Extra safety: sometimes response.text can be None
         if not hasattr(response, "text") or response.text is None:
-            return "Gemini returned an empty response. Try asking differently."
+            return "Gemini returned an empty response. Try rephrasing your question."
 
         return response.text.strip()
 
     except Exception as e:
-        # SHOW REAL ERROR → used for debugging your deployment
-        st.error(f"Gemini API error: {e}")
-        return (
-            "Sorry, something went wrong while contacting the AI. "
-            "Please try again in a moment."
-        )
+        # Show the real error inside the chat reply so you can see it for sure
+        return f"Sorry, something went wrong while contacting the AI.\n\n**Gemini error:** `{e}`"
+
 
 # ---------- Session State for Memory ----------
 if "chat_history" not in st.session_state:
