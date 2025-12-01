@@ -2,4 +2,4 @@ streamlit
 requests
 pandas
 altair
-google-generativeai>=1.0.0
+google-generativeai
